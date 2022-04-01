@@ -56,10 +56,27 @@ func run(command string, args ...string) []byte {
 	}
 	shell_cmd += fmt.Sprintf(" | tee %s/temp", workerDirectory)
 
-	fmt.Printf("Running '%s'!\n", shell_cmd)
+	fmt.Printf("[Worker] Running '%s'!\n", shell_cmd)
 
-	output, _ := exec.Command("bash", "-c", shell_cmd).CombinedOutput()
-	return output
+	cmd := exec.Command("bash", "-c", shell_cmd)
+
+  if err := cmd.Start(); err != nil {
+    return []byte(fmt.Sprintf("cmd.Start failed on worker %s", command, workerDirectory))
+  }
+
+	if err := cmd.Wait(); err == nil {
+    // fmt.Println("[Worker] " + err.Error())
+		if errorCode, ok := err.(*exec.ExitError); ok  {
+      output, _ := cmd.CombinedOutput()
+			return output
+		} else {
+			return []byte(fmt.Sprintf("%s\n\t^^^This Command returned an error code %d on worker %s", command, errorCode, workerDirectory))
+		}
+	} else {
+    fmt.Printf("ERROR: '%s'\n", err)
+  }
+    return []byte(fmt.Sprintf("run function failed in worker %s\n", workerDirectory))
+
 }
 
 // Handle the submission of a new job.
