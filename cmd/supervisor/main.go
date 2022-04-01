@@ -129,8 +129,23 @@ func new_job(w http.ResponseWriter, req *http.Request) {
 	// Remove duplicated errors. This is useful so we don't print the same error dozens of times.
 	responses = uniq(responses)
 
-	// Send a response back.
-	w.Write([]byte(strings.Join(responses, "")))
+	// Write the results to a file in case the client disconnected.
+	result := []byte(strings.Join(responses, ""))
+
+	fmt.Printf("Writing out results of jobs to file!\n")
+	f, err := os.Create("lastjob.txt")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	_, err = f.Write(result)
+
+	if err != nil {
+		panic(err)
+	}
+
+	// Send a response back to the client.
+	w.Write(result)
 }
 
 // Take a list of strings and return that list with duplicates removed
