@@ -50,7 +50,15 @@ func check(e error) {
 // Run a given command.
 func run(command string, args ...string) []byte {
 
-	output, _ := exec.Command(command, args...).CombinedOutput()
+	shell_cmd := command
+	for _, arg := range args {
+		shell_cmd += fmt.Sprintf(" %s", arg)
+	}
+	shell_cmd += fmt.Sprintf(" | tee %s/temp", workerDirectory)
+
+	fmt.Printf("Running '%s'!\n", shell_cmd)
+
+	output, _ := exec.Command("bash", "-c", shell_cmd).CombinedOutput()
 	return output
 }
 
@@ -82,11 +90,13 @@ func new_job(w http.ResponseWriter, req *http.Request) {
 		args = job.Args
 	}
 
+	fmt.Printf("Running '%s'\n", job.FileName)
 	// Run the code and get []byte output
 	output := runCode(job.Extension, job.Code, job.FileName, num, args)
 
 	// Send a response back.
 	w.Write(output)
+	fmt.Printf("Sent response back!\n")
 }
 
 // The entry point of the program.
