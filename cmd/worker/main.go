@@ -60,23 +60,27 @@ func run(command string, args ...string) []byte {
 
 	cmd := exec.Command("bash", "-c", shell_cmd)
 
-  if err := cmd.Start(); err != nil {
-    return []byte(fmt.Sprintf("cmd.Start failed on worker %s", command, workerDirectory))
-  }
-
-	if err := cmd.Wait(); err == nil {
-    // fmt.Println("[Worker] " + err.Error())
-		if errorCode, ok := err.(*exec.ExitError); ok  {
-      output, _ := cmd.CombinedOutput()
-			return output
+	if err := cmd.Start(); err != nil {
+		return []byte(fmt.Sprintf("cmd.Start failed on worker %s", workerDirectory))
+	}
+	err := cmd.Wait()
+	if err == nil {
+		// fmt.Println("[Worker] " + err.Error())
+		errorCode, ok := err.(*exec.ExitError)
+		if ok {
+			if errorCode.ProcessState.Success() {
+				output, _ := cmd.CombinedOutput()
+				return output
+			} else {
+				return []byte(fmt.Sprintf("%s\n\t^^^This Command returned an error on worker %s", command, workerDirectory))
+			}
 		} else {
-			return []byte(fmt.Sprintf("%s\n\t^^^This Command returned an error code %d on worker %s", command, errorCode, workerDirectory))
+			return []byte(fmt.Sprintf("grabbing the process code failed in worker %s\n", workerDirectory))
 		}
 	} else {
-    fmt.Printf("ERROR: '%s'\n", err)
-  }
-    return []byte(fmt.Sprintf("run function failed in worker %s\n", workerDirectory))
-
+		fmt.Printf("ERROR Running cmd.Wait(): '%s'\n", err)
+	}
+	return []byte(fmt.Sprintf("run function failed in worker %s\n", workerDirectory))
 }
 
 // Handle the submission of a new job.
