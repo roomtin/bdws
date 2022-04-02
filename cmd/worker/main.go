@@ -1,6 +1,7 @@
 // This file contains the main routine for workers.
 package main
 
+// TODO: https://pkg.go.dev/github.com/pborman/ansi#Writer.Red
 import (
 	"bytes"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/showalter/bdws/internal/data"
 )
@@ -29,6 +31,49 @@ var extensionMap = map[string]codeFunction{
 }
 
 var workerDirectory string
+
+/**
+ * Calls the given command and returns its stdout, stderr and exit code.
+ * @param cmd
+ * @return stdout, stderr, exit code
+ **/
+func runWithErrorCode(cmd *exec.Cmd) ([]byte, []byte, int, error) {
+	stdout, _ := cmd.StdoutPipe()
+	stderr, _ := cmd.StderrPipe()
+
+	/* Start the command */
+	if err := cmd.Start(); err != nil {
+		return []byte(""), []byte(""), 0, err
+	}
+
+	/* Read from the pipes before the command terminates */
+	text, e1 := ioutil.ReadAll(stdout)
+	if e1 != nil {
+		return []byte(""), []byte(""), 0, e1
+	}
+
+	errText, e2 := ioutil.ReadAll(stderr)
+	if e2 != nil {
+		return []byte(""), []byte(""), 0, e2
+	}
+
+	exitCode := 0
+
+	/* Wait for the command to terminate and check the error code */
+	if err := cmd.Wait(); err != nil {
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+				log.Printf("Exit Status: %d", status.ExitStatus())
+				exitCode = status.ExitStatus()
+			}
+		} else {
+			//fmt.Println("AAAAAA\n")
+			return []byte(""), []byte(""), 0, err
+		}
+	}
+
+	return []byte(text), []byte(errText), exitCode, nil
+}
 
 // run the code given an extension
 func runCode(e string, code []byte, fn string, num *int, args []string) []byte {
@@ -54,33 +99,61 @@ func run(command string, args ...string) []byte {
 	for _, arg := range args {
 		shell_cmd += fmt.Sprintf(" %s", arg)
 	}
-	shell_cmd += fmt.Sprintf(" | tee %s/temp", workerDirectory)
+	// shell_cmd += fmt.Sprintf(" | tee %s/temp", workerDirectory)
 
 	fmt.Printf("[Worker] Running '%s'!\n", shell_cmd)
 
-	cmd := exec.Command("bash", "-c", shell_cmd)
+	// cmd := exec.Command("bash", "-c", shell_cmd)
+	cmd := exec.Command(shell_cmd)
 
-	if err := cmd.Start(); err != nil {
-		return []byte(fmt.Sprintf("cmd.Start failed on worker %s", workerDirectory))
-	}
-	err := cmd.Wait()
-	if err == nil {
-		// fmt.Println("[Worker] " + err.Error())
-		errorCode, ok := err.(*exec.ExitError)
-		if ok {
-			if errorCode.ProcessState.Success() {
-				output, _ := cmd.CombinedOutput()
-				return output
-			} else {
-				return []byte(fmt.Sprintf("%s\n\t^^^This Command returned an error on worker %s", command, workerDirectory))
-			}
-		} else {
-			return []byte(fmt.Sprintf("grabbing the process code failed in worker %s\n", workerDirectory))
+	//open pipe for cmd
+	/*
+		stdout, err := cmd.StdoutPipe()
+
+		if err != nil {
+			panic(err)
 		}
-	} else {
-		fmt.Printf("ERROR Running cmd.Wait(): '%s'\n", err)
+		if err := cmd.Start(); err != nil {
+			return []byte(fmt.Sprintf("cmd.Start failed on worker %s", workerDirectory))
+		}
+		//read from stdout into a buffer
+		output, err := ioutil.ReadAll(stdout)
+		if err != nil {
+			panic(err)
+		}
+
+		status := cmd.Wait()
+
+		code := cmd.ProcessState.ExitCode()
+		fmt.Printf("[Worker Output]: Exit code = %d\n", code)
+		if code == 0 {
+			//success
+			//output, _ := cmd.CombinedOutput()
+			fmt.Println("[Worker Output]: " + string(output))
+			return output
+		} else {
+			//failure
+			//return []byte(fmt.Sprintf("grabbing the process code failed in worker %s\n", workerDirectory))
+			return []byte(fmt.Sprintf("%s\n\t^^^This Command returned an error code of %d on worker %s", command, code, workerDirectory))
+		}
+		//return []byte(fmt.Sprintf("run function failed in worker %s\n", workerDirectory))
+	*/
+
+	textOut, textErr, exitCode, err := runWithErrorCode(cmd)
+	fmt.Printf("[Worker] Stdout: '%s'\n", textOut)
+	fmt.Printf("[Worker] Stderr: '%s'\n", textErr)
+	fmt.Printf("[Worker] Exit Code: %d\n", exitCode)
+
+	if err != nil {
+		return []byte(fmt.Sprintf("[Client] '%s' returned an error code of %d on worker %s!", command, exitCode, workerDirectory))
 	}
-	return []byte(fmt.Sprintf("run function failed in worker %s\n", workerDirectory))
+
+	if exitCode != 0 {
+		return []byte(fmt.Sprintf("[Client] Job exited with error code %d\n[Stdout]\n%s\n[Stderr]\n%s", exitCode, textOut, textErr))
+	} else {
+		return []byte(fmt.Sprintf("[Stdout]\n%s\n[Stderr]\n%s", textOut, textErr))
+	}
+
 }
 
 // Handle the submission of a new job.
