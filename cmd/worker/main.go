@@ -106,39 +106,6 @@ func run(command string, args ...string) []byte {
 	// cmd := exec.Command("bash", "-c", shell_cmd)
 	cmd := exec.Command(shell_cmd)
 
-	//open pipe for cmd
-	/*
-		stdout, err := cmd.StdoutPipe()
-
-		if err != nil {
-			panic(err)
-		}
-		if err := cmd.Start(); err != nil {
-			return []byte(fmt.Sprintf("cmd.Start failed on worker %s", workerDirectory))
-		}
-		//read from stdout into a buffer
-		output, err := ioutil.ReadAll(stdout)
-		if err != nil {
-			panic(err)
-		}
-
-		status := cmd.Wait()
-
-		code := cmd.ProcessState.ExitCode()
-		fmt.Printf("[Worker Output]: Exit code = %d\n", code)
-		if code == 0 {
-			//success
-			//output, _ := cmd.CombinedOutput()
-			fmt.Println("[Worker Output]: " + string(output))
-			return output
-		} else {
-			//failure
-			//return []byte(fmt.Sprintf("grabbing the process code failed in worker %s\n", workerDirectory))
-			return []byte(fmt.Sprintf("%s\n\t^^^This Command returned an error code of %d on worker %s", command, code, workerDirectory))
-		}
-		//return []byte(fmt.Sprintf("run function failed in worker %s\n", workerDirectory))
-	*/
-
 	textOut, textErr, exitCode, err := runWithErrorCode(cmd)
 	fmt.Printf("[Worker] Stdout: '%s'\n", textOut)
 	fmt.Printf("[Worker] Stderr: '%s'\n", textErr)
