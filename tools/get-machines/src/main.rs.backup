@@ -1,0 +1,103 @@
+use clap::Parser;
+use std::fs::File;
+use std::io::{prelude::*,BufReader, Write};
+use std::fmt::Write as fmt_write;
+use std::process::Command;
+
+
+/// A small utility to aid in figuring out what JMU CS lab machines are
+/// currently not being used by other students. This program takes a list
+/// of machines and writes out a list of machines with no users logged in.
+#[derive(Parser, Debug)]
+#[clap(about, long_about = None)]
+struct Args {
+    /// A file containing the hostnames of the machines to check, one hostname per line
+    master_machine_list: String,
+
+    // Limmit checking of machines to a single lab room, e.g. "250" for lab room 250, default value is all rooms
+   // #[clap(short, default_value = "", required = false)]
+   // room_number: String,
+
+    /// Pass this flag to have information about the machines that are currently in use printed out
+    #[clap(short)]
+    display_used_machines: bool,
+
+}
+
+
+fn main() {
+    let args = Args::parse();    
+
+    //open master_machine_list and read in all the hostnames into a vector
+    let mut master_machine_list = Vec::new();
+    let file = File::open(&args.master_machine_list).unwrap();
+    let buf_reader = BufReader::new(file);
+    for line in buf_reader.lines() {
+        let line = line.unwrap();
+        master_machine_list.push(line);
+    }
+    
+    let machine_info = query(master_machine_list);
+
+    //if the user wants to display the machines that are currently in use, print them out
+    if args.display_used_machines {
+        for used_machines in machine_info.1 {
+            let user = used_machines.0.split_whitespace().collect::<Vec<&str>>()[0];
+            let machine = used_machines.1.split(".").collect::<Vec<&str>>()[0];
+            println!("{} is using {}", user, machine);
+        }
+    }
+
+    //write the free machines to a string named "free_machines", one machine per line
+    let mut free_machines = String::new();
+    for free_machine in machine_info.0 {
+        write!(&mut free_machines, "{}\n", free_machine).unwrap();
+    }    
+    //write free_machines to a file named "free_machines.txt"
+    let mut file = File::create("free_machines.txt").unwrap();
+    file.write_all(free_machines.as_bytes()).unwrap();
+
+
+    println!("Done!");
+}
+
+fn query(hostnames: Vec<String>) -> (Vec<String>, Vec<(String, String)>){
+    //ssh into each machine and run "who" using standard command
+    let mut free_machines = vec!();
+    let mut used_machines = vec!();
+    for hostname in hostnames {
+        let mut ssh_cmd = String::new();
+        write!(ssh_cmd, "ssh {} \"who\"", hostname).unwrap();
+        
+        let output = Command::new("sh")
+            .arg("-c")
+            .arg(ssh_cmd)
+            .output();
+
+        match output {
+            Ok(output) => {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                if stderr.len() > 0 {
+                    if stderr.contains("No route to host") {
+                        let host = hostname.split(".").collect::<Vec<&str>>()[0];
+                        println!("{} is offline.", host);
+                    } else {
+                        println!("STDERR from {}: {}", &hostname, stderr);
+                    }
+                }
+                if stdout.len() > 0 {
+                    used_machines.push((stdout.to_string(), hostname.to_string()));
+                }
+                if stdout.len() == 0 && stderr.len() == 0 {
+                    free_machines.push(hostname);
+                }
+            },
+            Err(error) => {
+                println!("Command error: {}", error);
+            }
+        }
+
+    }
+    (free_machines, used_machines)
+}
