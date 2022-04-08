@@ -129,8 +129,8 @@ main() {
   window=$initial_window
   pane=$initial_pane
 
-  # Determine number of machines avaiable for use when using stu
-  if [[ "$hostname" =~ .*"stu.cs.jmu.edu".* ]]
+  # Determine number of machines avaiable for use when using designated supervisor
+  if [[ "$hostname" =~ .*"l220420.cs.jmu.edu".* ]]
     then
       let "machine_cnt=$(wc -l < configs/stu_machines.txt)"
   fi
@@ -155,7 +155,7 @@ main() {
       let "pane++"
       let "worker_port++"
       # Check stu lab machine, when hostname contains stu
-      if [[ "$hostname" =~ .*"stu.cs.jmu.edu".* ]]
+      if [[ "$hostname" =~ .*"l220420.cs.jmu.edu".* ]]
         then
 	  let "machine_num=machine_num%$machine_cnt+1"
 	  lab_machine=$(sed -n ${machine_num}p configs/stu_machines.txt)
