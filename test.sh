@@ -185,7 +185,7 @@ main() {
 	  # Check stu lab machine, when hostname contains designated supervisor
 	  if [[ "$hostname" =~ .*"l220420.cs.jmu.edu".* ]]
             then
-		  if courtesy==1
+		  if [ $courtesy -eq 1]
 		  	then
 		  echo "Searching for idle lab machines..."
 		  ./tools/bin/get-machines -m all_machines.txt 
