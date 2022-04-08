@@ -23,6 +23,8 @@ type codeFunction func([]byte, string, *int, []string) []byte
 var extensionMap = map[string]codeFunction{
 	"sh":             script,
 	"py":             pythonScript,
+	"rb":             rubyScript,
+	"pl":             perlScript,
 	"java":           javaFile,
 	"class":          javaClass,
 	"jar":            jarFile,
@@ -334,6 +336,44 @@ func pythonScript(code []byte, fileName string, num *int, args []string) []byte 
 	}
 	args = append([]string{fullName}, args...)
 	output = run("python3", args...)
+
+	return output
+}
+
+func rubyScript(code []byte, fileName string, num *int, args []string) []byte {
+
+	var output []byte
+
+	fullName := workerDirectory + "/" + fileName
+
+	// Create temporary file
+	createFile(fullName, code)
+
+	// Execute temp script.
+	if num != nil {
+		args = append([]string{strconv.Itoa(*num)}, args...)
+	}
+	args = append([]string{fullName}, args...)
+	output = run("rb", args...)
+
+	return output
+}
+
+func perlScript(code []byte, fileName string, num *int, args []string) []byte {
+
+	var output []byte
+
+	fullName := workerDirectory + "/" + fileName
+
+	// Create temporary file
+	createFile(fullName, code)
+
+	// Execute temp script.
+	if num != nil {
+		args = append([]string{strconv.Itoa(*num)}, args...)
+	}
+	args = append([]string{fullName}, args...)
+	output = run("perl", args...)
 
 	return output
 }
