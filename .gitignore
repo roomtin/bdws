@@ -1,3 +1,5 @@
 main
 mid-project/
 go.sum
+.vscode/
+benchmarks/aesnt/target/
