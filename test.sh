@@ -38,7 +38,6 @@ let "max_pane_num=$max_pane_cnt-1+$initial_pane"
 hostname="http://127.0.0.1"
 sup_port=5001
 worker_cnt=1
-courtesy=0
 
 
 # Parses arguments provided by command-line.
@@ -56,8 +55,6 @@ parse_args() {
 	    printf "\n\n\t-hn [hostname]\t\t\tUse a provided STRING as the hostname. Include 'http://' or 'https://' when necessary.";
 	    printf "\n\n\t-sp [supervisor port #]\t\tUse a provided INTEGER for the supervisor port.";
 	    printf "\n\n\t-wc [# of workers]\t\tUse a provided INTEGER for the number of workers.";
-	    printf "\n\n\t-c  [courtesy]\t\t\tIf on the JMU network, remove machines from the worker machine list which others are using before starting the job.
-			\n\t\t\t\t\tNOTE: This will cause prompts for first time connections to every machine the user has not logged into before.";
 	    printf "\n\n\t-p [# of panes]\t\t\tUse a provided INTEGER for the number of panes displayed in a window in tmux.";
 	    printf "\n\n\t-i\t\t\t\tOnly use this option the starting index for tmux windows in tmux.conf is configured
 	        \t\t\tto 1, instead of 0 (default).\n\n\n"
@@ -108,9 +105,6 @@ parse_args() {
 	# Window numbering adjustment
 	-i) initial_window=1;
 	    shift 1;;
-	# Courtesy flag
-	-c) courtesy=1;
-		shift 1;;
         # Default case
 	*) "ERROR: Incorrect flag(s) provided. See -h for help."; 
 	   exit 1;;
@@ -129,8 +123,8 @@ main() {
   window=$initial_window
   pane=$initial_pane
 
-  # Determine number of machines avaiable for use when using designated supervisor
-  if [[ "$hostname" =~ .*"l220420.cs.jmu.edu".* ]]
+  # Determine number of machines avaiable for use when using stu
+  if [[ "$hostname" =~ .*"stu.cs.jmu.edu".* ]]
     then
       let "machine_cnt=$(wc -l < configs/stu_machines.txt)"
   fi
@@ -155,7 +149,7 @@ main() {
       let "pane++"
       let "worker_port++"
       # Check stu lab machine, when hostname contains stu
-      if [[ "$hostname" =~ .*"l220420.cs.jmu.edu".* ]]
+      if [[ "$hostname" =~ .*"stu.cs.jmu.edu".* ]]
         then
 	  let "machine_num=machine_num%$machine_cnt+1"
 	  lab_machine=$(sed -n ${machine_num}p configs/stu_machines.txt)
@@ -182,22 +176,12 @@ main() {
 	  fi
 	  # Worker i will corespond to machine (5000 + i+1), this is offset by 1 with supervisor starting on 5001
 	  let "worker_port++"
-	  # Check stu lab machine, when hostname contains designated supervisor
-	  if [[ "$hostname" =~ .*"l220420.cs.jmu.edu".* ]]
+	  # Check stu lab machine, when hostname contains stu
+	  if [[ "$hostname" =~ .*"stu.cs.jmu.edu".* ]]
             then
-		  if [ $courtesy -eq 1]
-		  	then
-		  echo "Searching for idle lab machines..."
-		  ./tools/bin/get-machines -m all_machines.txt 
-		  mv tools/bin/free_machines.txt config/free_machines.txt
 	      let "machine_num=machine_num%$machine_cnt+1"
-	      lab_machine=$(sed -n ${machine_num}p configs/free_machines.txt)
+	      lab_machine=$(sed -n ${machine_num}p configs/stu_machines.txt)
               tmux send-keys -t bdwstest:$window.$pane "ssh -o StrictHostKeyChecking=no $lab_machine" Enter
-		  else
-	      let "machine_num=machine_num%$machine_cnt+1"
-	      lab_machine=$(sed -n ${machine_num}p configs/all_machines.txt)
-              tmux send-keys -t bdwstest:$window.$pane "ssh -o StrictHostKeyChecking=no $lab_machine" Enter
-		  fi
 	  fi
 
 	  # Startup Worker i
