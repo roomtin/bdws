@@ -41,7 +41,7 @@ func ClientDataToJson(id int, time time.Time) []byte {
 }
 
 /**
- * Coverts a []byte of json into a client struct
+ * converts a []byte of json into a client struct
  */
 func JsonToClient(b []byte) Client {
 	var c Client
@@ -99,7 +99,7 @@ func JobDataToJson(id int, time time.Time, machines int,
 }
 
 /**
- * Coverts a []byte of json into a Job struct
+ * converts a []byte of json into a Job struct
  */
 func JsonToJob(b []byte) Job {
 	var j Job
@@ -149,7 +149,7 @@ func WorkerDataToJson(id int64, busy bool, hostname string) []byte {
 }
 
 /**
- * Coverts a []byte of json into a Worker struct
+ * Converts a []byte of json into a Worker struct
  */
 func JsonToWorker(b []byte) Worker {
 	var w Worker
@@ -163,4 +163,66 @@ func JsonToWorker(b []byte) Worker {
 		os.Exit(-1)
 	}
 	return w
+}
+
+type Registration struct {
+	Hostname     string
+	Cores        int
+	ModelName    string
+	CpuSpeed     float64
+	MemAvailable int
+}
+
+/** -- RegistrationDataToJson --------------------------------------------------
+ * Saves a Registration information into json
+ * @param registration Registration struct
+ * @return []byte of json
+ ** --------------------------------------------------------------------------*/
+func RegistrationToJson(reg Registration) []byte {
+
+	// Save c as json byte array
+	b, err := json.Marshal(reg)
+
+	// Exit on error, otherwise return b
+	if err != nil {
+		log.Println(err)
+		os.Exit(-1)
+	}
+	return b
+}
+
+/** -- RegistrationToJson -------------------------------------------------------
+ * Saves a Registration information into json
+ * @param hostname string
+ * @param cores int
+ * @param model_name string
+ * @param cpu_speed float64
+ * @param mem_available int
+ * @return []byte of json
+ ** --------------------------------------------------------------------------*/
+func RegistrationDataToJson(hostname string, cores int, model_name string, cpu_speed float64, mem_available int) []byte {
+
+	// Create Registration Object
+	r := Registration{hostname, cores, model_name, cpu_speed, mem_available}
+
+	return RegistrationToJson(r)
+}
+
+/** -- JsonToRegistration -------------------------------------------------------
+ * Converts a []byte of json into a Registration struct
+ * @param b []byte
+ * @return Registration struct
+ ** --------------------------------------------------------------------------*/
+func JsonToRegistration(b []byte) Registration {
+	var r Registration
+
+	// Unmarshall b into Registration r
+	err := json.Unmarshal(b, &r)
+
+	// Exit on error, otherwise return r
+	if err != nil {
+		log.Println(err)
+		os.Exit(-1)
+	}
+	return r
 }

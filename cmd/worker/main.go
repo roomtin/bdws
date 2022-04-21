@@ -32,16 +32,9 @@ var extensionMap = map[string]codeFunction{
 	"system program": system_program,
 }
 
-type stats struct {
-	cores         int
-	model_name    string
-	cpu_speed     float64
-	mem_available int
-}
-
 var workerDirectory string
 
-func grabStats() stats {
+func grabStats() data.Registration {
 	//read /proc/cpuinfo into a byte array
 	cpuinfo, err := ioutil.ReadFile("/proc/cpuinfo")
 	check(err)
@@ -49,14 +42,13 @@ func grabStats() stats {
 	memdata, err := os.ReadFile("/proc/meminfo")
 	check(err)
 
-	s := stats{
-		cores:         get_cores(cpuinfo),
-		model_name:    get_cpu_info(cpuinfo),
-		cpu_speed:     getSpeed(get_cpu_info(cpuinfo)),
-		mem_available: get_mem_info(memdata),
+	s := data.Registration{
+		Cores:        get_cores(cpuinfo),
+		ModelName:    get_cpu_info(cpuinfo),
+		CpuSpeed:     getSpeed(get_cpu_info(cpuinfo)),
+		MemAvailable: get_mem_info(memdata),
 	}
-	//print out s to the screen
-	//debugging for the stats struct
+
 	//fmt.Printf("%+v\n\n", s)
 
 	return s
@@ -92,7 +84,7 @@ func get_mem_info(data []byte) int {
 	for _, line := range lines {
 		if strings.Contains(line, "MemAvailable") {
 			//split the line by ' ' and return the second element
-			str, err := strconv.Atoi(strings.Split(line, " ")[5])
+			str, err := strconv.Atoi(strings.Split(line, " ")[4])
 			check(err)
 			return str
 		}
@@ -245,7 +237,6 @@ func main() {
 	// args[2] is the port to run on
 	args := os.Args
 
-	grabStats()
 	// If the right number of arguments weren't passed, ask for them.
 	if len(args) != 3 {
 		fmt.Println("Please pass the hostname of the supervisor and the outgoing port." +
@@ -253,7 +244,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	resp, err := http.Post(args[1]+"/register", "text/plain", strings.NewReader(args[2]))
+	/* Send the stats about this worker to the supervisor for registration */
+	reg := grabStats()
+	resp, err := http.Post(args[1]+"/register", "text/plain", bytes.NewReader(data.RegistrationToJson(reg)))
 	if err != nil {
 		panic(err)
 	}
