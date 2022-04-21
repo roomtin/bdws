@@ -65,7 +65,7 @@ func main() {
 	buf.ReadFrom(resp.Body)
 	file := buf.String()
 
-    fmt.Println(file)
+	fmt.Println(file)
 
 }
 

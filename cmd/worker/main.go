@@ -32,7 +32,83 @@ var extensionMap = map[string]codeFunction{
 	"system program": system_program,
 }
 
+type stats struct {
+	cores         int
+	model_name    string
+	cpu_speed     float64
+	mem_available int
+}
+
 var workerDirectory string
+
+func grabStats() stats {
+	//read /proc/cpuinfo into a byte array
+	cpuinfo, err := ioutil.ReadFile("/proc/cpuinfo")
+	check(err)
+
+	memdata, err := os.ReadFile("/proc/meminfo")
+	check(err)
+
+	s := stats{
+		cores:         get_cores(cpuinfo),
+		model_name:    get_cpu_info(cpuinfo),
+		cpu_speed:     getSpeed(get_cpu_info(cpuinfo)),
+		mem_available: get_mem_info(memdata),
+	}
+	//print out s to the screen
+	//debugging for the stats struct
+	//fmt.Printf("%+v\n\n", s)
+
+	return s
+}
+
+//add all the lines in data that contain the word "processor" to a list of cores
+func get_cores(data []byte) int {
+	lines := strings.Split(string(data), "\n")
+	cores := 0
+	for _, line := range lines {
+		if strings.Contains(line, "processor") {
+			cores++
+		}
+	}
+	return cores
+}
+
+//read the first line in data that contains the string "model name" into a variable called model
+func get_cpu_info(data []byte) string {
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "model name") {
+			//split the line by ':' and return the second element
+			return strings.Split(line, ":")[1]
+		}
+	}
+	return ""
+}
+
+//read the first line in memdata that contains the string "MemAvailable" into a variable called mem
+func get_mem_info(data []byte) int {
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "MemAvailable") {
+			//split the line by ' ' and return the second element
+			str, err := strconv.Atoi(strings.Split(line, " ")[5])
+			check(err)
+			return str
+		}
+	}
+	return 0
+}
+
+func getSpeed(model string) float64 {
+	speed := strings.Split(model, " ")[len(strings.Split(model, " "))-1]
+	//remove the last 3 characters from speed
+	speed = speed[:len(speed)-3]
+	//convert speed to a float
+	speedFloat, err := strconv.ParseFloat(speed, 64)
+	check(err)
+	return speedFloat
+}
 
 /**
  * Calls the given command and returns its stdout, stderr and exit code.
@@ -169,6 +245,7 @@ func main() {
 	// args[2] is the port to run on
 	args := os.Args
 
+	grabStats()
 	// If the right number of arguments weren't passed, ask for them.
 	if len(args) != 3 {
 		fmt.Println("Please pass the hostname of the supervisor and the outgoing port." +
