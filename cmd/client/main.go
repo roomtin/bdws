@@ -72,7 +72,7 @@ func main() {
 /* ----- Helper functions ----- */
 func parseCommandLine(hostname *string, fullFileName *string, start *int, end *int, args *[]string, runs *int) {
 	// Optional flags
-	argsPtr := flag.String("args", "NONE", "Command line args for file\nExample: -args \"-al\" when running ls")
+	argsPtr := flag.String("args", "NONE", "Command line args for file\nNote: -args \"-r\" is just for gathering results of a previous job\nExample: -args \"-alr\" when running ls")
 	rangePtr := flag.String("range", "NONE", "Range for job\nExample: -range 1-10")
 	runsPtr := flag.Int("runs", 1, "Number of times to run job")
 	flag.Parse()
